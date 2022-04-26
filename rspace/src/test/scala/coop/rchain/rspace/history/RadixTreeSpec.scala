@@ -167,7 +167,7 @@ class RadixTreeSpec extends FlatSpec with Matchers with OptionValues with InMemo
 
   "RadixTreeImpl" should "not allow to radix key smaller than NodePtr key" in withImplAndStore {
     (impl, _) =>
-      val initialItem           = NodePtr(createBV("11223344"), createBV32("01"))
+      val initialItem           = NodePtr(createBV("11223344"), createBlakeHash("01"))
       val wrongKVPair           = radixKV("11", "FF")
       val referenceErrorMessage = s"assertion failed: Radix key should be longer than NodePtr key."
       for {
@@ -389,11 +389,11 @@ class RadixTreeSpec extends FlatSpec with Matchers with OptionValues with InMemo
   "encoding and then decoding a node" should "give this node" in {
     val leaf = Leaf(
       createBV("FFFF"),
-      createBV32("0000000000000000000000000000000000000000000000000000000000000001")
+      createBlakeHash("0000000000000000000000000000000000000000000000000000000000000001")
     )
     val nodePtr = NodePtr(
       createBV(""),
-      createBV("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+      createBlakeHash("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
     )
     val referenceNode = emptyNode
       .updated(1, leaf)
@@ -655,10 +655,10 @@ class RadixTreeSpec extends FlatSpec with Matchers with OptionValues with InMemo
     res6 shouldBe (ByteVector.empty, ByteVector.empty, ByteVector.empty)
   }
 
-  def createBV32(s: String): ByteVector = {
+  def createBlakeHash(s: String): Blake2b256Hash = {
     val notEmptyPart = createBV(s)
     val emptyPart    = List.fill(32 - notEmptyPart.size.toInt)(0x00.toByte)
-    ByteVector(emptyPart) ++ notEmptyPart
+    Blake2b256Hash.fromByteVector(ByteVector(emptyPart) ++ notEmptyPart)
   }
 
   def createBV(s: String): ByteVector = ByteVector(Base16.unsafeDecode(s))
@@ -671,7 +671,7 @@ class RadixTreeSpec extends FlatSpec with Matchers with OptionValues with InMemo
 
   object radixKV {
     def apply(strKey: String, strValue: String): radixKV =
-      new radixKV(createBV(strKey), createBV32(strValue))
+      new radixKV(createBV(strKey), createBlakeHash(strValue).bytes)
   }
 
   /*
