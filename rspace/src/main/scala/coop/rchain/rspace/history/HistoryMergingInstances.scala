@@ -19,7 +19,7 @@ import scala.Function.tupled
 import scala.Ordering.Implicits.seqDerivedOrdering
 import scala.collection.concurrent.TrieMap
 
-object HistoryMergingInstances {
+/*object HistoryMergingInstances {
 
   type Index            = Byte
   type LastModification = (KeyPath, Trie)
@@ -107,7 +107,7 @@ object HistoryMergingInstances {
     }
 
   }
-}
+}*/
 
 /*
  * Type definitions for Merkle Trie implementation (History)
@@ -162,7 +162,7 @@ object Trie {
     trie match {
       case pb: PointerBlock  => pb.hash
       case s: Skip           => s.hash
-      case _: EmptyTrie.type => HistoryMergingInstances.emptyRootHash
+      case _: EmptyTrie.type => History.emptyRootHash
     }
 }
 
