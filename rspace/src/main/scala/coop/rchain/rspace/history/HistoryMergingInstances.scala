@@ -1,117 +1,12 @@
 package coop.rchain.rspace.history
 
-import cats.effect.{Concurrent, Sync}
+import cats.effect.Sync
 import cats.syntax.all._
-import cats.{Applicative, FlatMap, Parallel}
 import coop.rchain.rspace.hashing.Blake2b256Hash
 import coop.rchain.rspace.history.History._
-import coop.rchain.rspace.serializers.ScodecSerialize.{
-  codecPointerBlock,
-  codecSkip,
-  codecTrie,
-  RichAttempt
-}
+import coop.rchain.rspace.serializers.ScodecSerialize.{codecTrie, RichAttempt}
 import coop.rchain.shared.Base16
-import coop.rchain.shared.syntax._
 import scodec.bits.{BitVector, ByteVector}
-
-import scala.Function.tupled
-import scala.Ordering.Implicits.seqDerivedOrdering
-import scala.collection.concurrent.TrieMap
-
-/*object HistoryMergingInstances {
-
-  type Index            = Byte
-  type LastModification = (KeyPath, Trie)
-  type SubtrieAtIndex   = (Index, KeyPath, NonEmptyTriePointer)
-
-  def MalformedTrieError = new RuntimeException("malformed trie")
-
-  val emptyRoot: Trie               = EmptyTrie
-  private[this] def encodeEmptyRoot = codecTrie.encode(emptyRoot).getUnsafe.toByteVector
-  val emptyRootHash: Blake2b256Hash = Blake2b256Hash.create(encodeEmptyRoot)
-
-  // this mapping is kept explicit on purpose
-  @inline
-  private[history] def toInt(b: Byte): Int =
-    java.lang.Byte.toUnsignedInt(b)
-
-  // this mapping is kept explicit on purpose
-  @inline
-  private[history] def toByte(i: Int): Byte =
-    i.toByte
-
-  def commonPrefix(l: KeyPath, r: KeyPath): KeyPath =
-    (l.view, r.view).zipped.takeWhile { case (ll, rr) => ll == rr }.map(_._1).toSeq
-
-  final case class CachingHistoryStore[F[_]: Sync](historyStore: HistoryStore[F])
-      extends HistoryStore[F] {
-    private[rspace] val cache: TrieMap[Blake2b256Hash, Trie] = TrieMap.empty
-
-    override def put(tries: List[Trie]): F[Unit] =
-      Sync[F].delay {
-        tries.foreach { t =>
-          cache.put(Trie.hash(t), t)
-        }
-      }
-
-    override def get(key: Blake2b256Hash): F[Trie] =
-      for {
-        maybeValue <- Sync[F].delay { cache.get(key) }
-        result <- maybeValue match {
-                   case None    => historyStore.get(key)
-                   case Some(v) => Applicative[F].pure(v)
-                 }
-      } yield result
-
-    def clear(): F[Unit] = Sync[F].delay {
-      cache.clear()
-    }
-
-    def drop(tries: List[Trie]): F[Unit] =
-      Sync[F].delay {
-        tries.foreach { t =>
-          cache.remove(Trie.hash(t))
-        }
-      }
-
-    def commit(key: Blake2b256Hash): F[Unit] = {
-      def getValue(key: Blake2b256Hash): List[Trie] =
-        cache.get(key).toList // if a key exists in cache - we want to process it
-
-      def extractRefs(t: Trie): Seq[Blake2b256Hash] =
-        t match {
-          case pb: PointerBlock =>
-            pb.toVector.toList.filter(_ != EmptyPointer).flatMap {
-              case v: SkipPointer => v.hash :: Nil
-              case v: NodePointer => v.hash :: Nil
-              case _              => Nil
-            }
-          case Skip(_, LeafPointer(_))    => Nil
-          case Skip(_, NodePointer(hash)) => hash :: Nil
-          case EmptyTrie                  => Nil
-        }
-
-      def go(keys: List[Blake2b256Hash]): F[Either[List[Blake2b256Hash], Unit]] =
-        if (keys.isEmpty) Sync[F].pure(().asRight)
-        else {
-          val head :: rest = keys
-          for {
-            ts   <- Sync[F].delay { getValue(head) }
-            _    <- historyStore.put(ts)
-            _    <- Sync[F].delay { cache.remove(head) }
-            refs = ts.flatMap(extractRefs)
-          } yield (refs ++ rest).asLeft
-        }
-      Sync[F].tailRecM(key :: Nil)(go)
-    }
-
-  }
-}*/
-
-/*
- * Type definitions for Merkle Trie implementation (History)
- */
 
 sealed trait Trie
 
@@ -162,7 +57,7 @@ object Trie {
     trie match {
       case pb: PointerBlock  => pb.hash
       case s: Skip           => s.hash
-      case _: EmptyTrie.type => History.emptyRootHash
+      case _: EmptyTrie.type => RadixTree.emptyRootHash
     }
 }
 
