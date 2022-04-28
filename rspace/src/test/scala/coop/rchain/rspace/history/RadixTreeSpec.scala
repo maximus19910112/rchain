@@ -89,14 +89,14 @@ class RadixTreeSpec extends FlatSpec with Matchers with OptionValues with InMemo
                          dataSet.head.rKey,
                          dataSet.head.rValue
                        )
+
         rootItem2Opt <- impl.update(
                          rootItem1Opt.get,
                          dataSet(1).rKey,
                          dataSet(1).rValue
                        )
 
-        item     = rootItem2Opt.get
-        rootNode <- impl.constructNodeFromItem(item)
+        rootNode <- impl.constructNodeFromItem(rootItem2Opt.get)
 
         printedTreeStr <- impl.printTree(rootNode, "TREE: TWO LEAFS", noPrintFlag = true)
 
@@ -428,7 +428,7 @@ class RadixTreeSpec extends FlatSpec with Matchers with OptionValues with InMemo
   "tree with saveAndCommit" should "be built correctly and not create artefacts in KV - store" in withImplAndStore {
     (impl, inMemoStore) =>
       def createDeleteActions(keys: List[ByteVector]): List[DeleteAction] =
-        keys.map(key => DeleteAction(key.toSeq))
+        keys.map(key => DeleteAction(KeyPath(key)))
 
       /* treeDataSet:
             key      |   value
@@ -645,11 +645,11 @@ class RadixTreeSpec extends FlatSpec with Matchers with OptionValues with InMemo
   }
   def createBV32Blake(s: String): Blake2b256Hash = Blake2b256Hash.fromByteVector(createBV32(s))
 
-  def createBV(s: String): ByteVector    = ByteVector(Base16.unsafeDecode(s))
-  def createBVKey(s: String): KeyPathNew = KeyPathNew.create(createBV(s))
+  def createBV(s: String): ByteVector = ByteVector(Base16.unsafeDecode(s))
+  def createBVKey(s: String): KeyPath = KeyPath.create(createBV(s))
   def createInsertActions(dataSet: List[radixKV]): List[InsertAction] =
     dataSet.map { ds =>
-      InsertAction(ds.rKey.toSeq, Blake2b256Hash.fromByteVector(ds.rValue))
+      InsertAction(KeyPath(ds.rKey), Blake2b256Hash.fromByteVector(ds.rValue))
     }
 
   case class radixKV(rKey: ByteVector, rValue: ByteVector)

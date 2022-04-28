@@ -39,7 +39,7 @@ class HistoryGenKeySpec extends FlatSpec with Matchers with BeforeAndAfterAll {
   object Settings {
     val typeHistory: TypeHistory = Radix
 
-    val typeStore: TypeStore = Lmdb
+    val typeStore: TypeStore = InMemo
 
     val calcSize: Boolean = true
 
@@ -311,11 +311,11 @@ class HistoryGenKeySpec extends FlatSpec with Matchers with BeforeAndAfterAll {
             case (initData, i) =>
               for {
                 initHashes        <- Sync[F].delay(genInitTasks.toList)
-                initInsertActions = initHashes.map(x => InsertAction(x.bytes.toArray.toList, x))
+                initInsertActions = initHashes.map(x => InsertAction(KeyPath(x.bytes.toArray), x))
 
                 insReadDelHashes = genTasks.toList
-                insertActions    = insReadDelHashes.map(x => InsertAction(x.bytes.toArray.toList, x))
-                deleteActions    = insReadDelHashes.map(x => DeleteAction(x.bytes.toArray.toList))
+                insertActions    = insReadDelHashes.map(x => InsertAction(KeyPath(x.bytes.toArray), x))
+                deleteActions    = insReadDelHashes.map(x => DeleteAction(KeyPath(x.bytes.toArray)))
                 historyInitW     <- getHistory(v0)
                 historyInit      <- getHistory(v0)
 

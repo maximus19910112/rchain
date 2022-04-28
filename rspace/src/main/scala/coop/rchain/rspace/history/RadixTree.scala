@@ -28,14 +28,14 @@ object RadixTree {
     * @param prefix stores a part of the radixKey. Contain from 0 to 127 bytes.
     * @param value stores radixValue. Always contains 32 bytes.
     */
-  final case class Leaf(prefix: KeyPathNew, value: Blake2b256Hash) extends Item
+  final case class Leaf(prefix: KeyPath, value: Blake2b256Hash) extends Item
 
   /**
     * NodePtr is pointer to the next child [[Node]]. Contains 2 fields.
     * @param prefix stores a part of the radixKey. Contain from 0 to 127 bytes.
     * @param ptr stores hash of the child node (see section Storing of tree). Always contains 32 bytes.
     */
-  final case class NodePtr(prefix: KeyPathNew, ptr: Blake2b256Hash) extends Item
+  final case class NodePtr(prefix: KeyPath, ptr: Blake2b256Hash) extends Item
 
   /**
     * Base type for nodes in Radix History.
@@ -207,9 +207,9 @@ object RadixTree {
           // Decoding type of non-empty item
           val item =
             if (isLeaf(secondByte))
-              Leaf(KeyPathNew.create(ByteVector(prefix)), Blake2b256Hash.fromByteArray(valOrPtr))
+              Leaf(KeyPath.create(ByteVector(prefix)), Blake2b256Hash.fromByteArray(valOrPtr))
             else
-              NodePtr(KeyPathNew.create(ByteVector(prefix)), Blake2b256Hash.fromByteArray(valOrPtr))
+              NodePtr(KeyPath.create(ByteVector(prefix)), Blake2b256Hash.fromByteArray(valOrPtr))
 
           val nodeNext = node.updated(idxItem, item)
 
@@ -733,8 +733,8 @@ object RadixTree {
       */
     def constructNodeFromItem(item: Item): F[Node] =
       item match {
-        case NodePtr(KeyPathNew.empty, ptr) => loadNode(ptr.bytes)
-        case _                              => Sync[F].delay(createNodeFromItem(item))
+        case NodePtr(KeyPath.empty, ptr) => loadNode(ptr.bytes)
+        case _                           => Sync[F].delay(createNodeFromItem(item))
       }
 
     /**
@@ -754,16 +754,16 @@ object RadixTree {
             nonEmptyItems.head match {
               case EmptyItem => EmptyItem
               case Leaf(leafPrefix, value) =>
-                val newPrefix = KeyPathNew.create(prefix) ++ KeyPathNew.create(ByteVector(idxItem)) ++ leafPrefix
+                val newPrefix = KeyPath.create(prefix) ++ KeyPath.create(ByteVector(idxItem)) ++ leafPrefix
                 Leaf(newPrefix, value)
               case NodePtr(nodePtrPrefix, ptr) =>
                 val newPrefix = prefix ++ ByteVector(idxItem) ++ nodePtrPrefix.value
-                NodePtr(KeyPathNew.create(newPrefix), ptr)
+                NodePtr(KeyPath.create(newPrefix), ptr)
             }
           case 2 => // 2 or more items are not empty.
-            NodePtr(KeyPathNew.create(prefix), Blake2b256Hash.fromByteVector(saveNode(node)))
+            NodePtr(KeyPath.create(prefix), Blake2b256Hash.fromByteVector(saveNode(node)))
         }
-      } else NodePtr(KeyPathNew.create(prefix), Blake2b256Hash.fromByteVector(saveNode(node)))
+      } else NodePtr(KeyPath.create(prefix), Blake2b256Hash.fromByteVector(saveNode(node)))
 
     /**
       * Save new leaf value to this part of tree (start from curItems).
@@ -797,7 +797,7 @@ object RadixTree {
       Sync[F].defer {
         curItem match {
           case EmptyItem =>
-            (Leaf(KeyPathNew.create(insPrefix), Blake2b256Hash.fromByteVector(insValue)): Item).some.pure // Update EmptyItem to Leaf.
+            (Leaf(KeyPath.create(insPrefix), Blake2b256Hash.fromByteVector(insValue)): Item).some.pure // Update EmptyItem to Leaf.
 
           case Leaf(leafPrefix, leafValue) =>
             assert(
@@ -807,7 +807,7 @@ object RadixTree {
             if (leafPrefix.value == insPrefix) {
               if (insValue == leafValue.bytes) none[Item].pure
               else
-                (Leaf(KeyPathNew.create(insPrefix), Blake2b256Hash.fromByteVector(insValue)): Item).some.pure
+                (Leaf(KeyPath.create(insPrefix), Blake2b256Hash.fromByteVector(insValue)): Item).some.pure
             } // Update Leaf.
             else {
               // Create child node, insert existing and new leaf in this node.
@@ -817,12 +817,12 @@ object RadixTree {
               val newNode = emptyNode
                 .updated(
                   byteToInt(leafPrefixRest.head),
-                  Leaf(KeyPathNew.create(leafPrefixRest.tail), leafValue)
+                  Leaf(KeyPath.create(leafPrefixRest.tail), leafValue)
                 )
                 .updated(
                   byteToInt(insPrefixRest.head),
                   Leaf(
-                    KeyPathNew.create(insPrefixRest.tail),
+                    KeyPath.create(insPrefixRest.tail),
                     Blake2b256Hash.fromByteVector(insValue)
                   )
                 )
@@ -840,12 +840,12 @@ object RadixTree {
               val newNode = emptyNode
                 .updated(
                   byteToInt(ptrPrefixRest.head),
-                  NodePtr(KeyPathNew.create(ptrPrefixRest.tail), ptr)
+                  NodePtr(KeyPath.create(ptrPrefixRest.tail), ptr)
                 )
                 .updated(
                   byteToInt(insPrefixRest.head),
                   Leaf(
-                    KeyPathNew.create(insPrefixRest.tail),
+                    KeyPath.create(insPrefixRest.tail),
                     Blake2b256Hash.fromByteVector(insValue)
                   )
                 )
@@ -907,8 +907,8 @@ object RadixTree {
       def processOneAction(action: HistoryAction, item: Item, itemIdx: Int) =
         for {
           newItem <- action match {
-                      case InsertAction(key, hash) => update(item, ByteVector(key).tail, hash.bytes)
-                      case DeleteAction(key)       => delete(item, ByteVector(key).tail)
+                      case InsertAction(key, hash) => update(item, key.tailToValue, hash.bytes)
+                      case DeleteAction(key)       => delete(item, key.tailToValue)
                     }
         } yield (itemIdx, newItem)
 
