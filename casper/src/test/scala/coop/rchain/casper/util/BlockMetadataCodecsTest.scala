@@ -3,7 +3,15 @@ package coop.rchain.casper.util
 import cats.effect.Sync
 import com.google.protobuf.ByteString
 import coop.rchain.casper.protocol.Justification
-import coop.rchain.models.{BlockMetadata, BlockMetadataAB, JustificationArr}
+import coop.rchain.models.{
+  BlockMetadata,
+  BlockMetadataAB,
+  BlockMetadataBS,
+  BlockMetadataBV,
+  JustificationBA,
+  JustificationBS,
+  JustificationBV
+}
 import coop.rchain.shared.Base16
 import monix.eval.Task
 import org.scalatest.FlatSpec
@@ -55,21 +63,21 @@ object GeneratorBlockMetadata {
     )
   }
 
-  def randomBlockMetadataScodec(
+  def randomBlockMetadataAB(
       parentsCount: Int,
       justCount: Int,
       weightCount: Int
   ): BlockMetadataAB =
-    toBlockMetadataScodec(randomBlockMetadata(parentsCount, justCount, weightCount))
+    toBlockMetadataAB(randomBlockMetadata(parentsCount, justCount, weightCount))
 
-  def toBlockMetadataScodec(block: BlockMetadata): BlockMetadataAB =
+  def toBlockMetadataAB(block: BlockMetadata): BlockMetadataAB =
     BlockMetadataAB(
       block.blockHash.toByteArray,
       block.parents.map(parent => parent.toByteArray),
       block.sender.toByteArray,
       block.justifications.map(
         just =>
-          JustificationArr(
+          JustificationBA(
             just.validator.toByteArray,
             just.latestBlockHash.toByteArray
           )
@@ -81,18 +89,64 @@ object GeneratorBlockMetadata {
       block.directlyFinalized,
       block.finalized
     )
+
+  def toBlockMetadataBV(block: BlockMetadata): BlockMetadataBV =
+    BlockMetadataBV(
+      ByteVector(block.blockHash.toByteArray),
+      block.parents.map(parent => ByteVector(parent.toByteArray)),
+      ByteVector(block.sender.toByteArray),
+      block.justifications.map(
+        just =>
+          JustificationBV(
+            ByteVector(just.validator.toByteArray),
+            ByteVector(just.latestBlockHash.toByteArray)
+          )
+      ),
+      block.weightMap.map { case (k, v) => (ByteVector(k.toByteArray) -> v) },
+      block.blockNum,
+      block.seqNum,
+      block.invalid,
+      block.directlyFinalized,
+      block.finalized
+    )
+
+  def randomBlockMetadataBV(parentsCount: Int, justCount: Int, weightCount: Int): BlockMetadataBV =
+    toBlockMetadataBV(randomBlockMetadata(parentsCount, justCount, weightCount))
+
+  def toBlockMetadataBS(block: BlockMetadata): BlockMetadataBS =
+    BlockMetadataBS(
+      ByteString.copyFrom(block.blockHash.toByteArray),
+      block.parents.map(parent => ByteString.copyFrom(parent.toByteArray)),
+      ByteString.copyFrom(block.sender.toByteArray),
+      block.justifications.map(
+        just =>
+          JustificationBS(
+            ByteString.copyFrom(just.validator.toByteArray),
+            ByteString.copyFrom(just.latestBlockHash.toByteArray)
+          )
+      ),
+      block.weightMap.map { case (k, v) => (ByteString.copyFrom(k.toByteArray) -> v) },
+      block.blockNum,
+      block.seqNum,
+      block.invalid,
+      block.directlyFinalized,
+      block.finalized
+    )
+
+  def randomBlockMetadataBS(parentsCount: Int, justCount: Int, weightCount: Int): BlockMetadataBS =
+    toBlockMetadataBS(randomBlockMetadata(parentsCount, justCount, weightCount))
 }
 
 class BlockMetadataCodecsTest extends FlatSpec {
   import GeneratorBlockMetadata._
   "encode BlockMetadataScodec object with new codec and decode serialized data" should "give initial object" in {
-    val testBlockMetadataScodec = randomBlockMetadataScodec(
+    val testBlockMetadataScodec = randomBlockMetadataAB(
       parentsCount = 10,
       justCount = 10,
       weightCount = 100
     )
 
-    val testBlockMetadataScodec2 = randomBlockMetadataScodec(
+    val testBlockMetadataScodec2 = randomBlockMetadataAB(
       parentsCount = 10,
       justCount = 20,
       weightCount = 5
@@ -108,9 +162,9 @@ class BlockMetadataCodecsTest extends FlatSpec {
 
   "encode BlockMetadataScodec object with some empty fields and decode binary data" should "give initial object without errors" in {
     val referenceBlocks = List(
-      randomBlockMetadataScodec(parentsCount = 0, justCount = 10, weightCount = 10),
-      randomBlockMetadataScodec(parentsCount = 10, justCount = 0, weightCount = 10),
-      randomBlockMetadataScodec(parentsCount = 10, justCount = 10, weightCount = 0)
+      randomBlockMetadataAB(parentsCount = 0, justCount = 10, weightCount = 10),
+      randomBlockMetadataAB(parentsCount = 10, justCount = 0, weightCount = 10),
+      randomBlockMetadataAB(parentsCount = 10, justCount = 10, weightCount = 0)
     )
 
     val serialized    = referenceBlocks.map(BlockMetadataAB.toByteVector)
