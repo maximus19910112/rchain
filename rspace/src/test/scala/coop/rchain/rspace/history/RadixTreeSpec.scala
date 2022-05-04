@@ -362,7 +362,7 @@ class RadixTreeSpec extends FlatSpec with Matchers with OptionValues with InMemo
 
       _        = impl.clearReadCache()
       _        = impl.clearWriteCache()
-      loadNode <- impl.loadNode(hash)
+      loadNode <- impl.loadNode(Blake2b256Hash.fromByteVector(hash))
       _        = loadNode shouldBe emptyNode
     } yield ()
   }
@@ -376,7 +376,7 @@ class RadixTreeSpec extends FlatSpec with Matchers with OptionValues with InMemo
         _    = impl.clearReadCache()
         _    = impl.clearWriteCache()
 
-        err                   <- impl.loadNode(hash).attempt
+        err                   <- impl.loadNode(Blake2b256Hash.fromByteVector(hash)).attempt
         ex                    = err.left.get
         _                     = ex shouldBe a[AssertionError]
         referenceErrorMessage = s"assertion failed: Missing node in database. ptr=${hash.toHex}."

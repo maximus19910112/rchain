@@ -22,7 +22,7 @@ object RadixHistory {
   ): F[RadixHistory[F]] =
     for {
       impl <- Sync[F].delay(new RadixTreeImpl[F](store))
-      node <- impl.loadNode(root.bytes, noAssert = true)
+      node <- impl.loadNode(root, noAssert = true)
     } yield RadixHistory(root, node, impl, store)
 
   def createStore[F[_]: Sync](
@@ -44,7 +44,7 @@ final case class RadixHistory[F[_]: Sync: Parallel](
   override def reset(root: Blake2b256Hash): F[History[F]] =
     for {
       impl <- Sync[F].delay(new RadixTreeImpl[F](store))
-      node <- impl.loadNode(root.bytes, noAssert = true)
+      node <- impl.loadNode(root, noAssert = true)
     } yield this.copy(root, node, impl, store)
 
   override def read(key: ByteVector): F[Option[ByteVector]] =

@@ -605,15 +605,16 @@ object RadixTree {
       * If there is no such record in cache - load and decode from KVDB, then save to cacheR.
       * If there is no such record in KVDB - execute assert (if set noAssert flag - return emptyNode).
       */
-    def loadNode(nodePtr: ByteVector, noAssert: Boolean = false): F[Node] = {
-      def errorMsg(): Unit = assert(noAssert, s"Missing node in database. ptr=${nodePtr.toHex}.")
+    def loadNode(nodePtr: Blake2b256Hash, noAssert: Boolean = false): F[Node] = {
+      def errorMsg(): Unit =
+        assert(noAssert, s"Missing node in database. ptr=${nodePtr.bytes.toHex}.")
       def cacheMiss =
         for {
-          storeNodeOpt <- loadNodeFromStore(nodePtr)
-          _            = storeNodeOpt.map(cacheR.update(nodePtr, _)).getOrElse(errorMsg())
+          storeNodeOpt <- loadNodeFromStore(nodePtr.bytes)
+          _            = storeNodeOpt.map(cacheR.update(nodePtr.bytes, _)).getOrElse(errorMsg())
         } yield storeNodeOpt.getOrElse(emptyNode)
       for {
-        cacheNodeOpt <- Sync[F].delay(cacheR.get(nodePtr))
+        cacheNodeOpt <- Sync[F].delay(cacheR.get(nodePtr.bytes))
         r            <- cacheNodeOpt.map(_.pure).getOrElse(cacheMiss)
       } yield r
     }
@@ -697,8 +698,8 @@ object RadixTree {
               case NodePtr(ptrPrefix, ptr) =>
                 val (_, prefixRest, ptrPrefixRest) = commonPrefix(prefix.tail, ptrPrefix)
                 if (ptrPrefixRest.isEmpty)
-                  loadNode(ptr.bytes).map(n => (n, prefixRest).asLeft) // Deeper
-                else Option.empty[ByteVector].asRight[Params].pure     // Not found
+                  loadNode(ptr).map(n => (n, prefixRest).asLeft)   // Deeper
+                else Option.empty[ByteVector].asRight[Params].pure // Not found
             }
         }
       (startNode, startPrefix).tailRecM(loop)
@@ -729,7 +730,7 @@ object RadixTree {
       */
     def constructNodeFromItem(item: Item): F[Node] =
       item match {
-        case NodePtr(ByteVector.empty, ptr) => loadNode(ptr.bytes)
+        case NodePtr(ByteVector.empty, ptr) => loadNode(ptr)
         case _                              => Sync[F].delay(createNodeFromItem(item))
       }
 
@@ -779,7 +780,7 @@ object RadixTree {
           insPrefix: ByteVector
       ) =
         for {
-          childNode                      <- loadNode(childPtr)
+          childNode                      <- loadNode(Blake2b256Hash.fromByteVector(childPtr))
           (childItemIdx, childInsPrefix) = (byteToInt(insPrefix.head), insPrefix.tail)
           childItemOpt                   <- update(childNode(childItemIdx), childInsPrefix, insValue) // Deeper
           returnedItem = childItemOpt.map { childItem =>
@@ -848,7 +849,7 @@ object RadixTree {
           delPrefix: ByteVector
       ): F[Option[Item]] =
         for {
-          childNode                   <- loadNode(childPtr)
+          childNode                   <- loadNode(Blake2b256Hash.fromByteVector(childPtr))
           (delItemIdx, delItemPrefix) = (byteToInt(delPrefix.head), delPrefix.tail)
           childItemOpt                <- delete(childNode(delItemIdx), delItemPrefix)
           newChildNode = childItemOpt.map { childItem =>
@@ -1026,7 +1027,7 @@ object RadixTree {
                             Vector(leafStr).pure
                           case (NodePtr(ptrPrefix, ptr), idx) =>
                             for {
-                              childNode    <- loadNode(ptr.bytes)
+                              childNode    <- loadNode(ptr)
                               childTreeStr <- print(childNode, indentLevel + 1)
                               ptrStr       = constructNodePtrStr(indent, idx, ptrPrefix)
                               r            = ptrStr +: childTreeStr
