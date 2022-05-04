@@ -398,7 +398,7 @@ object RadixTree {
     def addLeaf(
         p: StepData,
         leafPrefix: ByteVector,
-        leafValue: ByteVector,
+        leafHash: Blake2b256Hash,
         itemIndex: Byte,
         curNodePrefix: ByteVector,
         newPath: Vector[NodeData]
@@ -411,7 +411,7 @@ object RadixTree {
           p.expData.leafPrefixes :+ newSingleLP
         } else Vector()
         val newLV =
-          if (settings.flagLeafValues) p.expData.leafValues :+ leafValue
+          if (settings.flagLeafValues) p.expData.leafValues :+ leafHash.bytes
           else Vector()
         val newExportData = ExportData(
           nodePrefixes = p.expData.nodePrefixes,
@@ -426,7 +426,7 @@ object RadixTree {
     def addNodePtr(
         p: StepData,
         ptrPrefix: ByteVector,
-        ptr: ByteVector,
+        ptr: Blake2b256Hash,
         itemIndex: Byte,
         curNodePrefix: ByteVector,
         newPath: Vector[NodeData]
@@ -440,7 +440,7 @@ object RadixTree {
           if (settings.flagNodePrefixes) p.expData.nodePrefixes :+ childNP
           else Vector()
         val newNK =
-          if (settings.flagNodeKeys) p.expData.nodeKeys :+ ptr else Vector()
+          if (settings.flagNodeKeys) p.expData.nodeKeys :+ ptr.bytes else Vector()
         val newNV =
           if (settings.flagNodeValues) p.expData.nodeValues :+ childNV
           else Vector()
@@ -454,10 +454,10 @@ object RadixTree {
         StepData(childPath, p.skip, p.take - 1, newData)
       }
       for {
-        childNodeOpt <- getNodeDataFromStore(ptr)
+        childNodeOpt <- getNodeDataFromStore(ptr.bytes)
         childNV <- childNodeOpt.liftTo[F](
                     new Exception(
-                      s"Export error: Node with key ${ptr.toHex} not found"
+                      s"Export error: Node with key ${ptr.bytes.toHex} not found"
                     )
                   )
         childDecoded  = Codecs.decode(childNV)
@@ -481,9 +481,9 @@ object RadixTree {
         case EmptyItem =>
           StepData(newPath, p.skip, p.take, p.expData).pure
         case Leaf(leafPrefix, leafValue) =>
-          addLeaf(p, leafPrefix, leafValue.bytes, itemIndex, curNodePrefix, newPath).pure
+          addLeaf(p, leafPrefix, leafValue, itemIndex, curNodePrefix, newPath).pure
         case NodePtr(ptrPrefix, ptr) =>
-          addNodePtr(p, ptrPrefix, ptr.bytes, itemIndex, curNodePrefix, newPath)
+          addNodePtr(p, ptrPrefix, ptr, itemIndex, curNodePrefix, newPath)
       }
     }
 
