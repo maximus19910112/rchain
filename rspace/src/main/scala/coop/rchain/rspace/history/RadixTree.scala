@@ -53,7 +53,7 @@ object RadixTree {
     */
   val emptyNode: Node = (0 until numItems).map(_ => EmptyItem).toVector
 
-  val emptyRootHash: Blake2b256Hash = Blake2b256Hash.fromByteVector(hashNode(emptyNode)._1)
+  val emptyRootHash: Blake2b256Hash = hashNode(emptyNode)._1
 
   /**
     * Binary codecs for serializing/deserializing Node in Radix tree
@@ -247,10 +247,9 @@ object RadixTree {
     *
     * @return Blake2b256 hash of input data.
     */
-  def hashNode(node: Node): (ByteVector, ByteVector) = {
-    import coop.rchain.crypto.hash.Blake2b256
+  def hashNode(node: Node): (Blake2b256Hash, ByteVector) = {
     val bytes = Codecs.encode(node)
-    (ByteVector(Blake2b256.hash(bytes)), bytes)
+    (Blake2b256Hash.create(bytes), bytes)
   }
 
   def byteToInt(b: Byte): Int = b & 0xff
@@ -643,11 +642,11 @@ object RadixTree {
       val (hash, bytes) = hashNode(node)
       def checkCollision(v: Node): Unit = assert(
         v == node,
-        s"Collision in cache: record with key = ${hash.toHex} has already existed."
+        s"Collision in cache: record with key = ${hash.bytes.toHex} has already existed."
       )
-      cacheR.get(hash).map(checkCollision).getOrElse(cacheR.update(hash, node))
-      cacheW.update(hash, bytes)
-      hash
+      cacheR.get(hash.bytes).map(checkCollision).getOrElse(cacheR.update(hash.bytes, node))
+      cacheW.update(hash.bytes, bytes)
+      hash.bytes
     }
 
     /**
