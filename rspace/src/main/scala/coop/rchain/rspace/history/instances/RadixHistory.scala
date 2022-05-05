@@ -47,7 +47,7 @@ final case class RadixHistory[F[_]: Sync: Parallel](
       node <- impl.loadNode(root, noAssert = true)
     } yield this.copy(root, node, impl, store)
 
-  override def read(key: ByteVector): F[Option[ByteVector]] =
+  override def read(key: ByteVector): F[Option[Blake2b256Hash]] =
     impl.read(rootNode, key)
 
   override def process(actions: List[HistoryAction]): F[History[F]] =

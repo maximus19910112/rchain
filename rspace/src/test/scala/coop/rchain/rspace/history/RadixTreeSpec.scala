@@ -323,7 +323,7 @@ class RadixTreeSpec extends FlatSpec with Matchers with OptionValues with InMemo
 
       readDataOpt <- impl.read(rootNode, initialKVPair.rKey)
 
-      _ = readDataOpt.get shouldBe initialKVPair.rValue
+      _ = readDataOpt.get.bytes shouldBe initialKVPair.rValue
     } yield ()
   }
 

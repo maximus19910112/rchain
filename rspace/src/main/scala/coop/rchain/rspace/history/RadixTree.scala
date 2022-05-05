@@ -682,24 +682,25 @@ object RadixTree {
     /**
       * Read leaf data with prefix. If data not found, returned [[None]]
       */
-    final def read(startNode: Node, startPrefix: ByteVector): F[Option[ByteVector]] = {
+    final def read(startNode: Node, startPrefix: ByteVector): F[Option[Blake2b256Hash]] = {
       type Params = (Node, ByteVector)
-      def loop(params: Params): F[Either[Params, Option[ByteVector]]] =
+      def loop(params: Params): F[Either[Params, Option[Blake2b256Hash]]] =
         params match {
-          case (_, ByteVector.empty) => Option.empty[ByteVector].asRight[Params].pure // Not found
+          case (_, ByteVector.empty) =>
+            Option.empty[Blake2b256Hash].asRight[Params].pure // Not found
           case (curNode, prefix) =>
             curNode(byteToInt(prefix.head)) match {
-              case EmptyItem => Option.empty[ByteVector].asRight[Params].pure // Not found
+              case EmptyItem => Option.empty[Blake2b256Hash].asRight[Params].pure // Not found
 
               case Leaf(leafPrefix, value) =>
-                if (leafPrefix == prefix.tail) value.bytes.some.asRight[Params].pure // Happy end
-                else Option.empty[ByteVector].asRight[Params].pure                   // Not found
+                if (leafPrefix == prefix.tail) value.some.asRight[Params].pure // Happy end
+                else Option.empty[Blake2b256Hash].asRight[Params].pure         // Not found
 
               case NodePtr(ptrPrefix, ptr) =>
                 val (_, prefixRest, ptrPrefixRest) = commonPrefix(prefix.tail, ptrPrefix)
                 if (ptrPrefixRest.isEmpty)
-                  loadNode(ptr).map(n => (n, prefixRest).asLeft)   // Deeper
-                else Option.empty[ByteVector].asRight[Params].pure // Not found
+                  loadNode(ptr).map(n => (n, prefixRest).asLeft)       // Deeper
+                else Option.empty[Blake2b256Hash].asRight[Params].pure // Not found
             }
         }
       (startNode, startPrefix).tailRecM(loop)

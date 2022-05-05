@@ -196,7 +196,7 @@ class HistoryGenKeySpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 
       def readAndVerify(h: History[F], tasks: List[Blake2b256Hash]) =
         tasks.traverse { t =>
-          h.read(t.bytes).map(readVal => assert(readVal.contains(t.bytes), "Test read not passed"))
+          h.read(t.bytes).map(readVal => assert(readVal.contains(t), "Test read not passed"))
         }
 
       def calcSizeBytesAndNumRecords(h: HistoryType[F]): Option[(Long, Int)] =
